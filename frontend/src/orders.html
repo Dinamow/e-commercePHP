@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Orders - ShopEasy</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="container">
+    <a href="/" class="navbar-brand">ShopEasy</a>
+    <ul class="navbar-nav" id="navbar-nav"></ul>
+  </div>
+</nav>
+
+<main>
+  <div class="container">
+    <h2 style="margin-bottom:1.5rem;">My Orders</h2>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Order ID</th>
+              <th>Date</th>
+              <th>Total</th>
+              <th>Status</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody id="orders-body">
+            <tr><td colspan="5" class="loading">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Order Detail Panel -->
+    <div id="order-detail" class="card" style="display:none; margin-top:1.5rem;">
+      <div class="card-body">
+        <h3 id="detail-title" style="margin-bottom:1rem;"></h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Product</th><th>Qty</th><th>Price</th><th>Subtotal</th></tr>
+            </thead>
+            <tbody id="detail-body"></tbody>
+          </table>
+        </div>
+        <p id="detail-address" style="margin-top:1rem; color:var(--text-muted); font-size:.9rem;"></p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="container">
+    <p>&copy; 2026 ShopEasy. All rights reserved.</p>
+  </div>
+</footer>
+
+<script src="/js/app.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  if (!requireAuth()) return;
+
+  const tbody  = document.getElementById('orders-body');
+  const detailPanel = document.getElementById('order-detail');
+  const detailBody  = document.getElementById('detail-body');
+  const detailTitle = document.getElementById('detail-title');
+  const detailAddr  = document.getElementById('detail-address');
+
+  try {
+    const data = await fetchAPI('/orders/list.php');
+    tbody.replaceChildren();
+    if (!data.orders.length) {
+      const tr = document.createElement('tr');
+      const td = document.createElement('td');
+      td.colSpan = 5;
+      td.textContent = 'No orders yet.';
+      td.style.textAlign = 'center';
+      td.style.color = 'var(--text-muted)';
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+      return;
+    }
+
+    data.orders.forEach(o => {
+      const tr = document.createElement('tr');
+
+      const tdId = document.createElement('td');
+      tdId.textContent = `#${o.id}`;
+
+      const tdDate = document.createElement('td');
+      tdDate.textContent = new Date(o.created_at).toLocaleDateString();
+
+      const tdTotal = document.createElement('td');
+      tdTotal.textContent = `$${parseFloat(o.total).toFixed(2)}`;
+
+      const tdStatus = document.createElement('td');
+      const badge = document.createElement('span');
+      badge.className = `badge badge-${o.status}`;
+      badge.textContent = o.status;
+      tdStatus.appendChild(badge);
+
+      const tdView = document.createElement('td');
+      const viewBtn = document.createElement('button');
+      viewBtn.className = 'btn btn-outline btn-sm';
+      viewBtn.textContent = 'View';
+      viewBtn.addEventListener('click', () => loadDetail(o.id));
+      tdView.appendChild(viewBtn);
+
+      tr.append(tdId, tdDate, tdTotal, tdStatus, tdView);
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    tbody.replaceChildren();
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = 5;
+    td.textContent = 'Failed to load orders.';
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+  }
+
+  async function loadDetail(orderId) {
+    try {
+      const data = await fetchAPI(`/orders/detail.php?id=${orderId}`);
+      const o = data.order;
+      detailTitle.textContent = `Order #${o.id} Details`;
+      detailAddr.textContent  = 'Ship to: ' + o.shipping_address;
+      detailBody.replaceChildren();
+      o.items.forEach(item => {
+        const tr = document.createElement('tr');
+        [item.name, item.quantity,
+         `$${parseFloat(item.price).toFixed(2)}`,
+         `$${(item.price * item.quantity).toFixed(2)}`].forEach(text => {
+          const td = document.createElement('td');
+          td.textContent = text;
+          tr.appendChild(td);
+        });
+        detailBody.appendChild(tr);
+      });
+      detailPanel.style.display = 'block';
+      detailPanel.scrollIntoView({ behavior: 'smooth' });
+    } catch (err) { alert(err.message); }
+  }
+});
+</script>
+</body>
+</html>

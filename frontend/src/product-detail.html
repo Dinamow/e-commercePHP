@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Product - ShopEasy</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="container">
+    <a href="/" class="navbar-brand">ShopEasy</a>
+    <ul class="navbar-nav" id="navbar-nav"></ul>
+  </div>
+</nav>
+
+<main>
+  <div class="container">
+    <p style="margin-bottom:1rem;"><a href="/products.html">&larr; Back to products</a></p>
+    <div id="product-detail" class="product-detail-grid">
+      <p class="loading">Loading...</p>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="container">
+    <p>&copy; 2026 ShopEasy. All rights reserved.</p>
+  </div>
+</footer>
+
+<script src="/js/app.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const id  = new URLSearchParams(location.search).get('id');
+  const el  = document.getElementById('product-detail');
+  if (!id) { el.textContent = 'Product not found.'; return; }
+
+  try {
+    const data = await fetchAPI('/products/detail.php?id=' + id);
+    const p = data.product;
+
+    el.replaceChildren();
+
+    const img = document.createElement('img');
+    img.src = p.image || 'https://placehold.co/600x400?text=Product';
+    img.alt = p.name;
+    img.style.borderRadius = '8px';
+    img.onerror = () => { img.src = 'https://placehold.co/600x400?text=Product'; };
+
+    const info = document.createElement('div');
+    info.className = 'product-detail-info';
+
+    const h1 = document.createElement('h1');
+    h1.textContent = p.name;
+
+    const cat = document.createElement('p');
+    cat.style.color = 'var(--text-muted)';
+    cat.textContent = p.category;
+
+    const price = document.createElement('div');
+    price.className = 'price';
+    price.textContent = `$${parseFloat(p.price).toFixed(2)}`;
+
+    const desc = document.createElement('p');
+    desc.style.marginBottom = '1rem';
+    desc.textContent = p.description || '';
+
+    const stock = document.createElement('p');
+    stock.className = 'stock';
+    stock.textContent = p.stock > 0 ? `In stock: ${p.stock}` : 'Out of stock';
+
+    const qtyRow = document.createElement('div');
+    qtyRow.className = 'qty-row';
+
+    const qtyLabel = document.createElement('label');
+    qtyLabel.textContent = 'Qty:';
+
+    const qtyInput = document.createElement('input');
+    qtyInput.type = 'number';
+    qtyInput.min = '1';
+    qtyInput.max = String(p.stock);
+    qtyInput.value = '1';
+    qtyInput.className = 'form-group input';
+    qtyInput.style.width = '80px';
+
+    qtyRow.append(qtyLabel, qtyInput);
+
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-primary';
+    btn.textContent = p.stock > 0 ? 'Add to Cart' : 'Out of Stock';
+    btn.disabled = p.stock === 0;
+    btn.addEventListener('click', async () => {
+      if (!requireAuth()) return;
+      btn.disabled = true;
+      btn.textContent = 'Adding...';
+      try {
+        await fetchAPI('/cart/add.php', {
+          method: 'POST',
+          body: JSON.stringify({ product_id: p.id, quantity: parseInt(qtyInput.value) }),
+        });
+        btn.textContent = 'Added to Cart!';
+        loadCartCount();
+        setTimeout(() => { btn.textContent = 'Add to Cart'; btn.disabled = false; }, 2000);
+      } catch (err) {
+        alert(err.message);
+        btn.textContent = 'Add to Cart';
+        btn.disabled = false;
+      }
+    });
+
+    info.append(h1, cat, price, desc, stock, qtyRow, btn);
+    el.append(img, info);
+  } catch {
+    el.textContent = 'Product not found.';
+  }
+});
+</script>
+</body>
+</html>
